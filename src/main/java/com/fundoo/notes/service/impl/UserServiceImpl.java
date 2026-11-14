@@ -1,62 +1,90 @@
 
 package com.fundoo.notes.service.impl;
 
+import com.fundoo.notes.dto.request.LoginRequestDto;
 import com.fundoo.notes.dto.request.UserRegisterRequestDto;
+import com.fundoo.notes.dto.response.LoginResponseDto;
 import com.fundoo.notes.dto.response.UserResponseDto;
 import com.fundoo.notes.entity.User;
 import com.fundoo.notes.repository.UserRepository;
+import com.fundoo.notes.service.PasswordService;
+import com.fundoo.notes.service.TokenService;
 import com.fundoo.notes.service.UserService;
-
 import org.springframework.stereotype.Service;
 
 /*
  * Class Name  : UserServiceImpl
- * Description : Implements user registration business logic,
- *               including duplicate email verification and
- *               saving user details through the repository.
+ * Description : Implements user registration and login,
+ *               including password verification and JWT creation.
  * Author      : Ashish Srivastava
  * Date        : 14/11/2026
  */
-
 @Service
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final PasswordService passwordService;
+    private final TokenService tokenService;
 
-    // Constructor injection provides the repository dependency.
-    public UserServiceImpl(UserRepository userRepository) {
+    // Constructor injection of repository and security utilities.
+    public UserServiceImpl(
+            UserRepository userRepository,
+            PasswordService passwordService,
+            TokenService tokenService) {
+
         this.userRepository = userRepository;
+        this.passwordService = passwordService;
+        this.tokenService = tokenService;
     }
 
-    // Checks email availability, saves the user and returns response DTO.
     @Override
     public UserResponseDto register(UserRegisterRequestDto requestDto) {
 
-        // Prevent registration with an email already in the database.
+        // Prevent registration with an already registered email.
         if (userRepository.findByEmail(requestDto.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Email already registered");
         }
 
-        // Convert incoming registration data into a User entity.
         User user = new User();
         user.setFirstName(requestDto.getFirstName());
         user.setEmail(requestDto.getEmail());
 
-        /*
-         * TEMPORARY: Password encoding is intentionally deferred to UC-06.
-         * Do not deploy or expose this registration flow before UC-06
-         * replaces this assignment with PasswordEncoder.encode(...).
-         */
-        user.setPassword(requestDto.getPassword());
+        // Store only the BCrypt hash, never the raw password.
+        user.setPassword(
+                passwordService.encodePassword(requestDto.getPassword())
+        );
 
-        // Persist the new user in the database.
         User savedUser = userRepository.save(user);
 
-        // Return only safe user details; never return the password.
+        // Never include the password in the response DTO.
         return new UserResponseDto(
                 savedUser.getId(),
                 savedUser.getFirstName(),
                 savedUser.getEmail()
         );
+    }
+
+    @Override
+    public LoginResponseDto login(LoginRequestDto requestDto) {
+
+        // Find the account using the submitted email.
+        User user = userRepository.findByEmail(requestDto.getEmail())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Invalid email or password"));
+
+        // Compare submitted password against the stored BCrypt hash.
+        boolean passwordMatches = passwordService.matchesPassword(
+                requestDto.getPassword(),
+                user.getPassword()
+        );
+
+        if (!passwordMatches) {
+            throw new IllegalArgumentException("Invalid email or password");
+        }
+
+        // Generate a token using the user's email as its subject.
+        String token = tokenService.generateToken(user.getEmail());
+
+        return new LoginResponseDto(token, "Login successful");
     }
 }
