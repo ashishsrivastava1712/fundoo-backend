@@ -6,11 +6,13 @@ import com.fundoo.notes.dto.request.UserRegisterRequestDto;
 import com.fundoo.notes.dto.response.LoginResponseDto;
 import com.fundoo.notes.dto.response.UserResponseDto;
 import com.fundoo.notes.entity.User;
+import com.fundoo.notes.event.UserRegistrationEvent;
 import com.fundoo.notes.exception.DuplicateEmailException;
 import com.fundoo.notes.exception.InvalidCredentialsException;
 import com.fundoo.notes.repository.UserRepository;
 import com.fundoo.notes.service.PasswordService;
 import com.fundoo.notes.service.TokenService;
+import com.fundoo.notes.service.UserRegistrationEventPublisher;
 import com.fundoo.notes.service.UserService;
 
 import org.slf4j.Logger;
@@ -24,61 +26,65 @@ import org.springframework.stereotype.Service;
  * Author      : Ashish Srivastava
  * Date        : 16/11/2026
  */
+
 @Service
 public class UserServiceImpl implements UserService {
 
-    // Logger for tracking user-related business operations.
     private static final Logger logger =
             LoggerFactory.getLogger(UserServiceImpl.class);
 
     private final UserRepository userRepository;
     private final PasswordService passwordService;
     private final TokenService tokenService;
+    private final UserRegistrationEventPublisher eventPublisher;
 
-    // Constructor injection of repository and security utilities.
     public UserServiceImpl(
             UserRepository userRepository,
             PasswordService passwordService,
-            TokenService tokenService) {
+            TokenService tokenService,
+            UserRegistrationEventPublisher eventPublisher) {
 
         this.userRepository = userRepository;
         this.passwordService = passwordService;
         this.tokenService = tokenService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
     public UserResponseDto register(UserRegisterRequestDto requestDto) {
 
-        logger.info("User registration process started");
+        logger.info("User registration started for email: {}",
+                requestDto.getEmail());
 
-        // Prevent registration with an already registered email.
         if (userRepository.findByEmail(requestDto.getEmail()).isPresent()) {
-
-            logger.warn("User registration rejected: email already exists");
-
-            throw new DuplicateEmailException(
-                    "Email is already registered");
+            logger.warn("Registration failed: email already exists: {}",
+                    requestDto.getEmail());
+            throw new DuplicateEmailException("Email is already registered");
         }
 
         User user = new User();
         user.setFirstName(requestDto.getFirstName());
         user.setEmail(requestDto.getEmail());
-
-        // Store only the BCrypt hash, never the raw password.
         user.setPassword(
                 passwordService.encodePassword(requestDto.getPassword())
         );
 
-        logger.debug("Password encoded successfully for new user");
-
         User savedUser = userRepository.save(user);
 
-        logger.info(
-                "User registration completed successfully. User ID: {}",
-                savedUser.getId()
+        logger.info("User registered successfully. User ID: {}",
+                savedUser.getId());
+
+        UserRegistrationEvent event = new UserRegistrationEvent(
+                savedUser.getId(),
+                savedUser.getFirstName(),
+                savedUser.getEmail()
         );
 
-        // Never include the password in the response DTO.
+        eventPublisher.publish(event);
+
+        logger.info("User registration event published for user ID: {}",
+                savedUser.getId());
+
         return new UserResponseDto(
                 savedUser.getId(),
                 savedUser.getFirstName(),
@@ -89,46 +95,32 @@ public class UserServiceImpl implements UserService {
     @Override
     public LoginResponseDto login(LoginRequestDto requestDto) {
 
-        logger.info("User login process started");
+        logger.info("Login attempt received for email: {}",
+                requestDto.getEmail());
 
-        // Find the account using the submitted email.
         User user = userRepository.findByEmail(requestDto.getEmail())
                 .orElseThrow(() -> {
-                    logger.warn("Login rejected: user account not found");
+                    logger.warn("Login failed: account not found for email: {}",
+                            requestDto.getEmail());
                     return new InvalidCredentialsException(
                             "Invalid email or password");
                 });
 
-        // Compare submitted password against the stored BCrypt hash.
         boolean passwordMatches = passwordService.matchesPassword(
                 requestDto.getPassword(),
                 user.getPassword()
         );
 
-        // Throw custom exception if password does not match.
         if (!passwordMatches) {
-
-            logger.warn(
-                    "Login rejected due to invalid credentials. User ID: {}",
-                    user.getId()
-            );
-
+            logger.warn("Login failed: invalid password for email: {}",
+                    requestDto.getEmail());
             throw new InvalidCredentialsException(
                     "Invalid email or password");
         }
 
-        logger.debug(
-                "Password verification successful. User ID: {}",
-                user.getId()
-        );
-
-        // Generate a token using the user's email as its subject.
         String token = tokenService.generateToken(user.getEmail());
 
-        logger.info(
-                "User login completed successfully. User ID: {}",
-                user.getId()
-        );
+        logger.info("Login successful for user ID: {}", user.getId());
 
         return new LoginResponseDto(token, "Login successful");
     }
