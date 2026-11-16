@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import com.fundoo.notes.exception.NoteNotFoundException;
 
 /*
  * Class Name  : NoteServiceImplTest
@@ -239,5 +240,233 @@ class NoteServiceImplTest {
 
         assertNotNull(response);
         assertTrue(response.isEmpty());
+    }
+    /*
+     * Helper method:
+     * Prepares an authenticated user and an existing note
+     * for testing note state operations.
+     */
+    private Note prepareNoteForStateTest(Long noteId) {
+
+        String token = "sample.jwt.token";
+
+        User user = new User();
+        user.setId(1L);
+        user.setEmail("ashish@example.com");
+
+        Note note = new Note();
+        note.setId(noteId);
+        note.setTitle("Testing Note");
+        note.setDescription("Testing note state changes");
+        note.setUser(user);
+
+        when(tokenService.isTokenValid(token)).thenReturn(true);
+        when(tokenService.extractSubject(token))
+                .thenReturn("ashish@example.com");
+
+        when(userRepository.findByEmail("ashish@example.com"))
+                .thenReturn(Optional.of(user));
+
+        when(noteRepository.findById(noteId))
+                .thenReturn(Optional.of(note));
+
+        when(noteRepository.save(any(Note.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        return note;
+    }
+
+    /*
+     * Test 7:
+     * Verify that pinning a note changes pinned to true.
+     */
+    @Test
+    void shouldPinNoteSuccessfully() {
+
+        Note note = prepareNoteForStateTest(10L);
+
+        NoteResponseDto response =
+                noteService.togglePin(10L, "sample.jwt.token");
+
+        assertTrue(response.isPinned());
+        verify(noteRepository).save(note);
+    }
+
+    /*
+     * Test 8:
+     * Verify that pinning an already pinned note
+     * changes pinned back to false.
+     */
+    @Test
+    void shouldUnpinNoteSuccessfully() {
+
+        Note note = prepareNoteForStateTest(10L);
+        note.setPinned(true);
+
+        NoteResponseDto response =
+                noteService.togglePin(10L, "sample.jwt.token");
+
+        assertFalse(response.isPinned());
+        verify(noteRepository).save(note);
+    }
+
+    /*
+     * Test 9:
+     * Verify that archiving a note changes archived to true.
+     */
+    @Test
+    void shouldArchiveNoteSuccessfully() {
+
+        Note note = prepareNoteForStateTest(10L);
+
+        NoteResponseDto response =
+                noteService.toggleArchive(10L, "sample.jwt.token");
+
+        assertTrue(response.isArchived());
+        verify(noteRepository).save(note);
+    }
+
+    /*
+     * Test 10:
+     * Verify that archiving an already archived note
+     * changes archived back to false.
+     */
+    @Test
+    void shouldUnarchiveNoteSuccessfully() {
+
+        Note note = prepareNoteForStateTest(10L);
+        note.setArchived(true);
+
+        NoteResponseDto response =
+                noteService.toggleArchive(10L, "sample.jwt.token");
+
+        assertFalse(response.isArchived());
+        verify(noteRepository).save(note);
+    }
+
+    /*
+     * Test 11:
+     * Verify that trashing a note changes trashed to true.
+     */
+    @Test
+    void shouldTrashNoteSuccessfully() {
+
+        Note note = prepareNoteForStateTest(10L);
+
+        NoteResponseDto response =
+                noteService.toggleTrash(10L, "sample.jwt.token");
+
+        assertTrue(response.isTrashed());
+        verify(noteRepository).save(note);
+    }
+
+    /*
+     * Test 12:
+     * Verify that restoring a trashed note
+     * changes trashed back to false.
+     */
+    @Test
+    void shouldRestoreNoteSuccessfully() {
+
+        Note note = prepareNoteForStateTest(10L);
+        note.setTrashed(true);
+
+        NoteResponseDto response =
+                noteService.toggleTrash(10L, "sample.jwt.token");
+
+        assertFalse(response.isTrashed());
+        verify(noteRepository).save(note);
+    }
+
+    /*
+     * Test 13:
+     * Verify that an exception is thrown when
+     * the requested note does not exist.
+     */
+    @Test
+    void shouldThrowExceptionWhenNoteDoesNotExist() {
+
+        User user = new User();
+        user.setId(1L);
+        user.setEmail("ashish@example.com");
+
+        when(tokenService.isTokenValid("sample.jwt.token"))
+                .thenReturn(true);
+
+        when(tokenService.extractSubject("sample.jwt.token"))
+                .thenReturn("ashish@example.com");
+
+        when(userRepository.findByEmail("ashish@example.com"))
+                .thenReturn(Optional.of(user));
+
+        when(noteRepository.findById(100L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                NoteNotFoundException.class,
+                () -> noteService.togglePin(100L, "sample.jwt.token")
+        );
+
+        verify(noteRepository, never()).save(any(Note.class));
+    }
+
+    /*
+     * Test 14:
+     * Verify that a user cannot modify another user's note.
+     */
+    @Test
+    void shouldRejectModificationOfAnotherUsersNote() {
+
+        User authenticatedUser = new User();
+        authenticatedUser.setId(1L);
+        authenticatedUser.setEmail("ashish@example.com");
+
+        User anotherUser = new User();
+        anotherUser.setId(2L);
+        anotherUser.setEmail("another@example.com");
+
+        Note anotherUsersNote = new Note();
+        anotherUsersNote.setId(10L);
+        anotherUsersNote.setTitle("Private Note");
+        anotherUsersNote.setUser(anotherUser);
+
+        when(tokenService.isTokenValid("sample.jwt.token"))
+                .thenReturn(true);
+
+        when(tokenService.extractSubject("sample.jwt.token"))
+                .thenReturn("ashish@example.com");
+
+        when(userRepository.findByEmail("ashish@example.com"))
+                .thenReturn(Optional.of(authenticatedUser));
+
+        when(noteRepository.findById(10L))
+                .thenReturn(Optional.of(anotherUsersNote));
+
+        assertThrows(
+                NoteNotFoundException.class,
+                () -> noteService.togglePin(10L, "sample.jwt.token")
+        );
+
+        verify(noteRepository, never()).save(any(Note.class));
+    }
+
+    /*
+     * Test 15:
+     * Verify that note modification is rejected
+     * when the JWT is invalid.
+     */
+    @Test
+    void shouldRejectNoteModificationWithInvalidToken() {
+
+        when(tokenService.isTokenValid("invalid.jwt"))
+                .thenReturn(false);
+
+        assertThrows(
+                InvalidCredentialsException.class,
+                () -> noteService.togglePin(10L, "invalid.jwt")
+        );
+
+        verify(noteRepository, never()).findById(anyLong());
+        verify(noteRepository, never()).save(any(Note.class));
     }
 }
