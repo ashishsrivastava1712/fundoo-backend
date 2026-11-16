@@ -104,4 +104,67 @@ class NoteControllerTest {
         assertNotNull(result.getBody());
         assertTrue(result.getBody().isEmpty());
     }
+    /*
+     * Test 4:
+     * Verify that pin endpoint returns HTTP 200.
+     */
+    @Test
+    void shouldReturnOkWhenNoteIsPinned() {
+
+        NoteResponseDto response = mock(NoteResponseDto.class);
+
+        when(noteService.togglePin(10L, "Bearer sample.jwt.token"))
+                .thenReturn(response);
+
+        ResponseEntity<NoteResponseDto> result =
+                noteController.togglePin(10L, "Bearer sample.jwt.token");
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertSame(response, result.getBody());
+
+        verify(noteService).togglePin(10L, "Bearer sample.jwt.token");
+    }
+
+    /*
+     * Test 5:
+     * Verify that archive endpoint returns HTTP 200.
+     */
+    @Test
+    void shouldReturnOkWhenNoteIsArchived() {
+
+        NoteResponseDto response = mock(NoteResponseDto.class);
+
+        when(noteService.toggleArchive(10L, "Bearer sample.jwt.token"))
+                .thenReturn(response);
+
+        ResponseEntity<NoteResponseDto> result =
+                noteController.toggleArchive(10L, "Bearer sample.jwt.token");
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertSame(response, result.getBody());
+
+        verify(noteService).toggleArchive(10L, "Bearer sample.jwt.token");
+    }
+
+    /*
+     * Test 6:
+     * Verify that trash endpoint returns HTTP 200.
+     */
+    @Test
+    void shouldReturnOkWhenNoteIsMovedToTrash() {
+
+        NoteResponseDto response = mock(NoteResponseDto.class);
+
+        when(noteService.toggleTrash(10L, "Bearer sample.jwt.token"))
+                .thenReturn(response);
+
+        ResponseEntity<NoteResponseDto> result =
+                noteController.toggleTrash(10L, "Bearer sample.jwt.token");
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertSame(response, result.getBody());
+
+        verify(noteService).toggleTrash(10L, "Bearer sample.jwt.token");
+    }
+
 }
