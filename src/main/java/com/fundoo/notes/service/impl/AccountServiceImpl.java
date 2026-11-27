@@ -37,6 +37,7 @@ public class AccountServiceImpl implements AccountService {
     private final OtpService otpService;
     private final PasswordService passwordService;
     private final RedisService redisService;
+    private final com.fundoo.notes.service.EmailService emailService;
 
     @Value("${app.redis.token-expiration}")
     private long tokenExpirationSeconds;
@@ -46,12 +47,14 @@ public class AccountServiceImpl implements AccountService {
             UserRepository userRepository,
             OtpService otpService,
             PasswordService passwordService,
-            RedisService redisService) {
+            RedisService redisService,
+            com.fundoo.notes.service.EmailService emailService) {
         this.userResolver = userResolver;
         this.userRepository = userRepository;
         this.otpService = otpService;
         this.passwordService = passwordService;
         this.redisService = redisService;
+        this.emailService = emailService;
     }
 
     @Override
@@ -80,8 +83,8 @@ public class AccountServiceImpl implements AccountService {
             return;
         }
         String otp = otpService.generateOtp(email);
-        // No SMTP server is configured; the OTP is written to the server log.
-        logger.info("Password reset OTP for {} is {} (valid 5 minutes)", email, otp);
+        logger.info("Password reset OTP generated for {}: {}", email, otp);
+        emailService.sendOtpEmail(email, otp);
     }
 
     @Override
