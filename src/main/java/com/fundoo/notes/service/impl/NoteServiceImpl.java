@@ -1,29 +1,32 @@
-
 package com.fundoo.notes.service.impl;
 
 import com.fundoo.notes.dto.request.NoteRequestDto;
+import com.fundoo.notes.dto.response.LabelResponseDto;
 import com.fundoo.notes.dto.response.NoteResponseDto;
 import com.fundoo.notes.entity.Note;
 import com.fundoo.notes.entity.User;
 import com.fundoo.notes.exception.InvalidCredentialsException;
 import com.fundoo.notes.exception.NoteNotFoundException;
 import com.fundoo.notes.repository.NoteRepository;
+import com.fundoo.notes.repository.ReminderRepository;
 import com.fundoo.notes.repository.UserRepository;
 import com.fundoo.notes.service.NoteService;
 import com.fundoo.notes.service.TokenService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 
 /*
  * Class Name  : NoteServiceImpl
- * Description : Implements note creation, retrieval and
+ * Description : Implements note creation, retrieval, updates and
  *               state update operations using JWT and caching.
  * Author      : Ashish Srivastava
  * Date        : 16/11/2026
@@ -39,11 +42,15 @@ public class NoteServiceImpl implements NoteService {
     private final UserRepository userRepository;
     private final TokenService tokenService;
 
+    @Autowired(required = false)
+    private ReminderRepository reminderRepository;
+
+    // Primary constructor for dependency injection.
+    @Autowired
     public NoteServiceImpl(
             NoteRepository noteRepository,
             UserRepository userRepository,
             TokenService tokenService) {
-
         this.noteRepository = noteRepository;
         this.userRepository = userRepository;
         this.tokenService = tokenService;
@@ -61,8 +68,9 @@ public class NoteServiceImpl implements NoteService {
         User user = findUserFromToken(token);
 
         Note note = new Note();
-        note.setTitle(requestDto.getTitle());
+        note.setTitle(requestDto.getTitle() != null ? requestDto.getTitle().trim() : "");
         note.setDescription(requestDto.getDescription());
+        note.setColor(requestDto.getColor());
         note.setUser(user);
 
         Note savedNote = noteRepository.save(note);
@@ -99,6 +107,32 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public NoteResponseDto getNoteById(Long noteId, String token) {
+        return mapToResponse(findNoteForUser(noteId, token));
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "notes", allEntries = true)
+    public NoteResponseDto updateNote(
+            Long noteId,
+            NoteRequestDto requestDto,
+            String token) {
+
+        logger.info("Update requested for Note ID: {}", noteId);
+        Note note = findNoteForUser(noteId, token);
+        if (requestDto.getTitle() != null) {
+            note.setTitle(requestDto.getTitle().trim());
+        }
+        note.setDescription(requestDto.getDescription());
+        note.setColor(requestDto.getColor());
+
+        Note updatedNote = noteRepository.save(note);
+        return mapToResponse(updatedNote);
+    }
+
+    @Override
     @Transactional
     @CacheEvict(value = "notes", allEntries = true)
     public NoteResponseDto togglePin(Long noteId, String token) {
@@ -109,7 +143,6 @@ public class NoteServiceImpl implements NoteService {
         note.setPinned(!note.isPinned());
 
         Note updatedNote = noteRepository.save(note);
-
         logger.info("Pin state updated for Note ID: {}", noteId);
 
         return mapToResponse(updatedNote);
@@ -126,7 +159,6 @@ public class NoteServiceImpl implements NoteService {
         note.setArchived(!note.isArchived());
 
         Note updatedNote = noteRepository.save(note);
-
         logger.info("Archive state updated for Note ID: {}", noteId);
 
         return mapToResponse(updatedNote);
@@ -143,15 +175,31 @@ public class NoteServiceImpl implements NoteService {
         note.setTrashed(!note.isTrashed());
 
         Note updatedNote = noteRepository.save(note);
-
         logger.info("Trash state updated for Note ID: {}", noteId);
 
         return mapToResponse(updatedNote);
     }
 
-    /*
-     * Returns authenticated user's ID for the cache key.
-     */
+    @Override
+    @Transactional
+    @CacheEvict(value = "notes", allEntries = true)
+    public void deleteNotePermanently(Long noteId, String token) {
+        logger.info("Permanent delete requested for Note ID: {}", noteId);
+        Note note = findNoteForUser(noteId, token);
+
+        if (!note.isTrashed()) {
+            throw new IllegalArgumentException(
+                    "Only notes in trash can be deleted permanently");
+        }
+
+        if (reminderRepository != null) {
+            reminderRepository.deleteByNoteId(note.getId());
+        }
+        note.getLabels().clear();
+        noteRepository.delete(note);
+        logger.info("Note permanently deleted. Note ID: {}", noteId);
+    }
+
     public Long getUserIdFromToken(String token) {
         return findUserFromToken(token).getId();
     }
@@ -167,25 +215,21 @@ public class NoteServiceImpl implements NoteService {
                 });
 
         if (!note.getUser().getId().equals(user.getId())) {
-
             logger.warn(
                     "Unauthorized note modification attempt. Note ID: {}, User ID: {}",
                     noteId,
                     user.getId()
             );
-
             throw new NoteNotFoundException("Note not found");
         }
 
         return note;
     }
 
-    private User findUserFromToken(String token) {
+    public User findUserFromToken(String token) {
 
         if (token == null || token.isBlank()) {
-
             logger.warn("Authorization token is missing");
-
             throw new InvalidCredentialsException(
                     "Authorization token is required");
         }
@@ -195,9 +239,7 @@ public class NoteServiceImpl implements NoteService {
                 : token.trim();
 
         if (!tokenService.isTokenValid(jwt)) {
-
             logger.warn("Invalid or expired JWT");
-
             throw new InvalidCredentialsException(
                     "Invalid or expired token");
         }
@@ -218,7 +260,7 @@ public class NoteServiceImpl implements NoteService {
 
     private NoteResponseDto mapToResponse(Note note) {
 
-        return new NoteResponseDto(
+        NoteResponseDto dto = new NoteResponseDto(
                 note.getId(),
                 note.getTitle(),
                 note.getDescription(),
@@ -226,5 +268,20 @@ public class NoteServiceImpl implements NoteService {
                 note.isArchived(),
                 note.isTrashed()
         );
+        dto.setColor(note.getColor());
+
+        if (note.getLabels() != null) {
+            dto.setLabels(note.getLabels().stream()
+                    .map(label -> new LabelResponseDto(label.getId(), label.getName()))
+                    .sorted(Comparator.comparing(LabelResponseDto::getName))
+                    .toList());
+        }
+
+        if (reminderRepository != null) {
+            reminderRepository.findByNoteId(note.getId())
+                    .ifPresent(reminder -> dto.setReminderTime(reminder.getReminderTime()));
+        }
+
+        return dto;
     }
 }

@@ -106,11 +106,54 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(response);
     }
 
+    private static final org.slf4j.Logger logger =
+            org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // Handles missing label or reminder.
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiErrorResponseDto> handleResourceNotFound(
+            ResourceNotFoundException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(createErrorResponse(
+                HttpStatus.NOT_FOUND, exception.getMessage(), request.getRequestURI(), null));
+    }
+
+    // Handles invalid business input.
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponseDto> handleIllegalArgument(
+            IllegalArgumentException exception,
+            HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(createErrorResponse(
+                HttpStatus.BAD_REQUEST, exception.getMessage(), request.getRequestURI(), null));
+    }
+
+    // Handles malformed JSON bodies.
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponseDto> handleUnreadableBody(
+            Exception exception,
+            HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(createErrorResponse(
+                HttpStatus.BAD_REQUEST, "Malformed request body", request.getRequestURI(), null));
+    }
+
+    // Handles requests without the Authorization header.
+    @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+    public ResponseEntity<ApiErrorResponseDto> handleMissingHeader(
+            Exception exception,
+            HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createErrorResponse(
+                HttpStatus.UNAUTHORIZED, "Authorization token is required",
+                request.getRequestURI(), null));
+    }
+
     // Handles all unexpected exceptions.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponseDto> handleGenericException(
             Exception exception,
             HttpServletRequest request) {
+
+        logger.error("Unexpected error processing {}: {}",
+                request.getRequestURI(), exception.getMessage(), exception);
 
         ApiErrorResponseDto response = createErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,

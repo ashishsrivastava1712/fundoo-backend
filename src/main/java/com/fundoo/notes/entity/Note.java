@@ -2,7 +2,7 @@
 /*
  * Class Name  : Note
  * Description : Represents a note created by a user and maps
- *               note details and lifecycle states to the database.
+ *               note details, colour, labels and lifecycle states to the database.
  * Author      : Ashish Srivastava
  * Date        : 14/11/2026
  */
@@ -10,6 +10,9 @@
 package com.fundoo.notes.entity;
 
 import jakarta.persistence.*;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "notes")
@@ -22,7 +25,10 @@ public class Note {
     @Column(nullable = false)
     private String title;
 
+    @Column(length = 5000)
     private String description;
+
+    private String color;
 
     private boolean pinned = false;
 
@@ -35,6 +41,15 @@ public class Note {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    // Many notes can share many labels.
+    @ManyToMany
+    @JoinTable(
+            name = "note_labels",
+            joinColumns = @JoinColumn(name = "note_id"),
+            inverseJoinColumns = @JoinColumn(name = "label_id")
+    )
+    private Set<Label> labels = new HashSet<>();
+
     // Default constructor required by JPA.
     public Note() {
     }
@@ -44,78 +59,77 @@ public class Note {
         this.title = title;
         this.description = description;
         this.user = user;
-        this.pinned = false;
-        this.archived = false;
-        this.trashed = false;
     }
 
-    // Returns the note ID.
     public Long getId() {
         return id;
     }
 
-    // Sets the note ID.
     public void setId(Long id) {
         this.id = id;
     }
 
-    // Returns the note title.
     public String getTitle() {
         return title;
     }
 
-    // Sets the note title.
     public void setTitle(String title) {
         this.title = title;
     }
 
-    // Returns the note description.
     public String getDescription() {
         return description;
     }
 
-    // Sets the note description.
     public void setDescription(String description) {
         this.description = description;
     }
 
-    // Checks whether the note is pinned.
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
+
     public boolean isPinned() {
         return pinned;
     }
 
-    // Updates the pinned state.
     public void setPinned(boolean pinned) {
         this.pinned = pinned;
     }
 
-    // Checks whether the note is archived.
     public boolean isArchived() {
         return archived;
     }
 
-    // Updates the archived state.
     public void setArchived(boolean archived) {
         this.archived = archived;
     }
 
-    // Checks whether the note is trashed.
     public boolean isTrashed() {
         return trashed;
     }
 
-    // Updates the trashed state.
     public void setTrashed(boolean trashed) {
         this.trashed = trashed;
     }
 
-    // Returns the user who owns this note.
     public User getUser() {
         return user;
     }
 
-    // Assigns the note to a user.
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public Set<Label> getLabels() {
+        return labels;
+    }
+
+    public void setLabels(Set<Label> labels) {
+        this.labels = labels;
     }
 }

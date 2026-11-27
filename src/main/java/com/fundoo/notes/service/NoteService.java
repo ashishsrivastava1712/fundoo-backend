@@ -1,4 +1,3 @@
-
 package com.fundoo.notes.service;
 
 import com.fundoo.notes.dto.request.NoteRequestDto;
@@ -7,11 +6,10 @@ import com.fundoo.notes.dto.response.NoteResponseDto;
 import java.util.List;
 
 /*
- * Class Name  : NoteService
- * Description : Defines business operations for creating,
- *               retrieving and updating user notes.
- * Author      : Ashish Srivastava
- * Date        : 16/11/2026
+ * Interface Name : NoteService
+ * Description    : Defines note management operations.
+ * Author         : Ashish Srivastava
+ * Date           : 14/11/2026
  */
 
 public interface NoteService {
@@ -22,6 +20,12 @@ public interface NoteService {
     // Retrieves all notes belonging to the authenticated user.
     List<NoteResponseDto> getAllNotes(String token);
 
+    // Retrieves a single note of the authenticated user.
+    NoteResponseDto getNoteById(Long noteId, String token);
+
+    // Updates title, description and colour of a note.
+    NoteResponseDto updateNote(Long noteId, NoteRequestDto requestDto, String token);
+
     // Toggles the pin status of an authenticated user's note.
     NoteResponseDto togglePin(Long noteId, String token);
 
@@ -30,4 +34,7 @@ public interface NoteService {
 
     // Toggles the trash status of an authenticated user's note.
     NoteResponseDto toggleTrash(Long noteId, String token);
+
+    // Permanently deletes a trashed note.
+    void deleteNotePermanently(Long noteId, String token);
 }

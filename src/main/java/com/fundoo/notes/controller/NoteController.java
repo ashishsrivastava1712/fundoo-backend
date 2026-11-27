@@ -1,4 +1,3 @@
-
 package com.fundoo.notes.controller;
 
 import com.fundoo.notes.dto.request.NoteRequestDto;
@@ -12,13 +11,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /*
  * Class Name  : NoteController
- * Description : Exposes REST endpoints for creating,
- *               retrieving and updating user notes.
+ * Description : Exposes REST endpoints for note management.
  * Author      : Ashish Srivastava
- * Date        : 16/11/2026
+ * Date        : 14/11/2026
  */
 
 @RestController
@@ -27,7 +26,6 @@ public class NoteController {
 
     private final NoteService noteService;
 
-    // Constructor injection of NoteService.
     public NoteController(NoteService noteService) {
         this.noteService = noteService;
     }
@@ -37,20 +35,32 @@ public class NoteController {
     public ResponseEntity<NoteResponseDto> createNote(
             @Valid @RequestBody NoteRequestDto requestDto,
             @RequestHeader("Authorization") String token) {
-
-        NoteResponseDto response = noteService.createNote(requestDto, token);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(noteService.createNote(requestDto, token));
     }
 
     // Retrieves all notes belonging to the authenticated user.
     @GetMapping
     public ResponseEntity<List<NoteResponseDto>> getAllNotes(
             @RequestHeader("Authorization") String token) {
+        return ResponseEntity.ok(noteService.getAllNotes(token));
+    }
 
-        List<NoteResponseDto> response = noteService.getAllNotes(token);
+    // Retrieves a single note.
+    @GetMapping("/{noteId}")
+    public ResponseEntity<NoteResponseDto> getNote(
+            @PathVariable("noteId") Long noteId,
+            @RequestHeader("Authorization") String token) {
+        return ResponseEntity.ok(noteService.getNoteById(noteId, token));
+    }
 
-        return ResponseEntity.ok(response);
+    // Updates title, description and colour of a note.
+    @PutMapping("/{noteId}")
+    public ResponseEntity<NoteResponseDto> updateNote(
+            @PathVariable("noteId") Long noteId,
+            @Valid @RequestBody NoteRequestDto requestDto,
+            @RequestHeader("Authorization") String token) {
+        return ResponseEntity.ok(noteService.updateNote(noteId, requestDto, token));
     }
 
     // Toggles the pin status of a note.
@@ -58,10 +68,7 @@ public class NoteController {
     public ResponseEntity<NoteResponseDto> togglePin(
             @PathVariable("noteId") Long noteId,
             @RequestHeader("Authorization") String token) {
-
-        NoteResponseDto response = noteService.togglePin(noteId, token);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(noteService.togglePin(noteId, token));
     }
 
     // Toggles the archive status of a note.
@@ -69,10 +76,7 @@ public class NoteController {
     public ResponseEntity<NoteResponseDto> toggleArchive(
             @PathVariable("noteId") Long noteId,
             @RequestHeader("Authorization") String token) {
-
-        NoteResponseDto response = noteService.toggleArchive(noteId, token);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(noteService.toggleArchive(noteId, token));
     }
 
     // Toggles the trash status of a note.
@@ -80,9 +84,15 @@ public class NoteController {
     public ResponseEntity<NoteResponseDto> toggleTrash(
             @PathVariable("noteId") Long noteId,
             @RequestHeader("Authorization") String token) {
+        return ResponseEntity.ok(noteService.toggleTrash(noteId, token));
+    }
 
-        NoteResponseDto response = noteService.toggleTrash(noteId, token);
-
-        return ResponseEntity.ok(response);
+    // Permanently deletes a trashed note.
+    @DeleteMapping("/{noteId}")
+    public ResponseEntity<Map<String, String>> deleteNote(
+            @PathVariable("noteId") Long noteId,
+            @RequestHeader("Authorization") String token) {
+        noteService.deleteNotePermanently(noteId, token);
+        return ResponseEntity.ok(Map.of("message", "Note deleted permanently"));
     }
 }

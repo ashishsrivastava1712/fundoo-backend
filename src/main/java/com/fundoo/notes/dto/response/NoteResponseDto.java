@@ -1,10 +1,12 @@
-
 package com.fundoo.notes.dto.response;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /*
  * Class Name  : NoteResponseDto
- * Description : Represents note details returned to the
- *               client after create or read operations.
+ * Description : Returns note details, labels and reminder to the client.
  * Author      : Ashish Srivastava
  * Date        : 14/11/2026
  */
@@ -14,9 +16,12 @@ public class NoteResponseDto {
     private Long id;
     private String title;
     private String description;
+    private String color;
     private boolean pinned;
     private boolean archived;
     private boolean trashed;
+    private List<LabelResponseDto> labels = new ArrayList<>();
+    private LocalDateTime reminderTime;
 
     public NoteResponseDto() {
     }
@@ -28,7 +33,6 @@ public class NoteResponseDto {
             boolean pinned,
             boolean archived,
             boolean trashed) {
-
         this.id = id;
         this.title = title;
         this.description = description;
@@ -61,6 +65,14 @@ public class NoteResponseDto {
         this.description = description;
     }
 
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
+
     public boolean isPinned() {
         return pinned;
     }
@@ -83,5 +95,21 @@ public class NoteResponseDto {
 
     public void setTrashed(boolean trashed) {
         this.trashed = trashed;
+    }
+
+    public List<LabelResponseDto> getLabels() {
+        return labels;
+    }
+
+    public void setLabels(List<LabelResponseDto> labels) {
+        this.labels = labels;
+    }
+
+    public LocalDateTime getReminderTime() {
+        return reminderTime;
+    }
+
+    public void setReminderTime(LocalDateTime reminderTime) {
+        this.reminderTime = reminderTime;
     }
 }

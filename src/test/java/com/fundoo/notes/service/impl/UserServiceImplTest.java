@@ -20,6 +20,7 @@ import com.fundoo.notes.exception.InvalidCredentialsException;
 import com.fundoo.notes.repository.UserRepository;
 import com.fundoo.notes.service.PasswordService;
 import com.fundoo.notes.service.TokenService;
+import com.fundoo.notes.service.UserRegistrationEventPublisher;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,6 +48,9 @@ class UserServiceImplTest {
 
     @Mock
     private TokenService tokenService;
+
+    @Mock
+    private UserRegistrationEventPublisher eventPublisher;
 
     @InjectMocks
     private UserServiceImpl userService;
