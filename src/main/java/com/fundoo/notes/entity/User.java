@@ -20,6 +20,9 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false, columnDefinition = "bit(1) default 0")
+    private boolean verified = false;
+
     // Default constructor required by JPA
     public User() {
     }
@@ -29,9 +32,18 @@ public class User {
         this.firstName = firstName;
         this.email = email;
         this.password = password;
+        this.verified = false;
     }
 
     // Getters and Setters
+
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
+    }
 
     public Long getId() {
         return id;

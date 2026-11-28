@@ -52,6 +52,14 @@ public class UserController {
         return ResponseEntity.ok(userService.login(requestDto));
     }
 
+    // Verifies email address using verification token.
+    @GetMapping("/verify-email")
+    public ResponseEntity<Map<String, String>> verifyEmail(
+            @RequestParam("token") String token) {
+        userService.verifyEmail(token);
+        return ResponseEntity.ok(Map.of("message", "Email verified successfully! You can now log in."));
+    }
+
     // Returns the authenticated user's profile.
     @GetMapping("/me")
     public ResponseEntity<UserResponseDto> me(

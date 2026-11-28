@@ -86,4 +86,28 @@ public class EmailServiceImpl implements EmailService {
 
         sendEmail(to, subject, htmlBody);
     }
+
+    @Override
+    public void sendVerificationEmail(String to, String name, String verificationLink) {
+        String subject = "Fundoo Notes - Verify Your Email Address";
+        String htmlBody = """
+            <div style="font-family: Arial, sans-serif; max-width: 520px; margin: auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 14px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span style="font-size: 28px; font-weight: 800; color: #2563eb; letter-spacing: -0.5px;">✦ Fundoo Notes</span>
+                </div>
+                <h3 style="color: #0f172a; margin-top: 0; font-size: 20px;">Verify your email address</h3>
+                <p style="font-size: 15px; color: #334155; line-height: 1.5;">Hi <strong>%s</strong>,</p>
+                <p style="font-size: 15px; color: #334155; line-height: 1.5;">Thank you for signing up for Fundoo Notes. Please click the button below to verify your email address and activate your account:</p>
+                <div style="margin: 28px 0; text-align: center;">
+                    <a href="%s" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);">Verify My Account</a>
+                </div>
+                <p style="font-size: 13px; color: #64748b; line-height: 1.5;">Or copy and paste this link into your browser:<br/><a href="%s" style="color: #2563eb; word-break: break-all;">%s</a></p>
+                <p style="font-size: 12px; color: #94a3b8; margin-top: 24px;">This verification link will expire in 24 hours. If you did not create an account, you can safely ignore this email.</p>
+                <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+                <p style="font-size: 11px; color: #94a3b8; text-align: center;">Fundoo Notes Application &bull; Secure Authentication</p>
+            </div>
+            """.formatted(name, verificationLink, verificationLink, verificationLink);
+
+        sendEmail(to, subject, htmlBody);
+    }
 }

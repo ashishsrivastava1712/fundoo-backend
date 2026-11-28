@@ -118,10 +118,33 @@ public class UserServiceImpl implements UserService {
                     "Invalid email or password");
         }
 
+        if (!user.isVerified()) {
+            logger.warn("Login failed: email not verified for: {}", user.getEmail());
+            throw new InvalidCredentialsException(
+                    "Please verify your email address before logging in. Check your inbox for the verification link.");
+        }
+
         String token = tokenService.generateToken(user.getEmail());
 
         logger.info("Login successful for user ID: {}", user.getId());
 
         return new LoginResponseDto(token, "Login successful");
+    }
+
+    @Override
+    public void verifyEmail(String token) {
+        if (!tokenService.isTokenValid(token)) {
+            throw new InvalidCredentialsException("Invalid or expired verification link");
+        }
+
+        String email = tokenService.extractSubject(token);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new InvalidCredentialsException("User not found"));
+
+        if (!user.isVerified()) {
+            user.setVerified(true);
+            userRepository.save(user);
+            logger.info("Email verified successfully for: {}", email);
+        }
     }
 }

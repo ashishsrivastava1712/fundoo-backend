@@ -20,4 +20,7 @@ public interface UserService {
 
     // Authenticates a user and returns a JWT.
     LoginResponseDto login(LoginRequestDto requestDto);
+
+    // Verifies user email via token.
+    void verifyEmail(String token);
 }

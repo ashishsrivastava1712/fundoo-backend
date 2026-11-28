@@ -141,6 +141,7 @@ class UserServiceImplTest {
         user.setFirstName("Ashish");
         user.setEmail("ashish@example.com");
         user.setPassword("$2a$10$encodedPasswordHash");
+        user.setVerified(true);
 
         // Mock user lookup.
         when(userRepository.findByEmail(request.getEmail()))

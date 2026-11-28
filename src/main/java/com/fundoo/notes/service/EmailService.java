@@ -17,4 +17,7 @@ public interface EmailService {
 
     // Sends a registration welcome / verification email.
     void sendWelcomeEmail(String to, String name);
+
+    // Sends an email verification link.
+    void sendVerificationEmail(String to, String name, String verificationLink);
 }
